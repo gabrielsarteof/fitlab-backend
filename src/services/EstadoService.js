@@ -4,13 +4,25 @@ import { Estado } from "../models/Estado.js";
 class EstadoService {
 
     static async findAll() {
-        return await Estado.findAll();
+        return await Estado.findAll({
+            include: [
+                { association: 'cliente', attributes: ['id', 'nome'] },
+                { association: 'nutricionista', attributes: ['id', 'nome'] }
+            ]
+        });
     }
+
 
     static async findByPk(req) {
         const { id } = req.params;
-        return await Estado.findByPk(id);
+        return await Estado.findByPk(id, {
+            include: [
+                { association: 'cliente', attributes: ['id', 'nome'] },
+                { association: 'nutricionista', attributes: ['id', 'nome'] }
+            ]
+        });
     }
+
 
     static async create(req) {
         const { data, peso, altura, taxa_gordura, circunferencia_cintura, circunferencia_braco, comentarios, cliente, nutricionista } = req.body;
