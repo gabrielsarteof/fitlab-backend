@@ -1,7 +1,7 @@
 import { EstadoService } from "../services/EstadoService.js";
 
 class EstadoController {
-  
+
   static async findAll(req, res) {
     EstadoService.findAll()
       .then(objs => res.json(objs))
@@ -32,9 +32,9 @@ class EstadoController {
       .catch(err => res.status(400).json({ err: err.message }));
   }
 
-  static async evolucaoCliente(_req, res) {
+  static async evolucaoCliente(req, res) { // Mudou de _req para req
     try {
-      const data = await EstadoService.evolucaoCliente();
+      const data = await EstadoService.evolucaoCliente(req); // Passou o req
 
       if (!data || data.length === 0) {
         return res.status(200).json({ message: `Nenhum registro de estado encontrado.` });

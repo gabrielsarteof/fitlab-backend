@@ -1,5 +1,7 @@
 //Matheus Cardoso
 import { Estado } from "../models/Estado.js";
+import { Op, QueryTypes } from 'sequelize';
+import sequelize from '../config/database-connection.js';
 
 class EstadoService {
 
@@ -25,14 +27,14 @@ class EstadoService {
 
 
     static async create(req) {
-        const { data, peso, altura, taxa_gordura, circunferencia_cintura, circunferencia_braco, comentarios, cliente, nutricionista } = req.body;
+        const { data, peso, altura, taxa_gordura, circunferencia_cintura, circunferencia_braco, comentarios, cliente_id, nutricionista_id } = req.body;
 
-        if (cliente == null) throw 'Cliente invalido!';
+        if (cliente_id == null) throw 'Cliente invalido!';
 
-        if (nutricionista == null) throw 'Nutricionista invalido!';
+        if (nutricionista_id == null) throw 'Nutricionista invalido!';
 
         if (await this.verificarRegrasDeNegocio(req)) {
-            const obj = await Estado.create({ data, peso, altura, taxa_gordura, circunferencia_cintura, circunferencia_braco, comentarios, cliente_id: cliente.id, nutricionista_id: nutricionista.id });
+            const obj = await Estado.create({ data, peso, altura, taxa_gordura, circunferencia_cintura, circunferencia_braco, comentarios, cliente_id, nutricionista_id });
             return await Estado.findByPk(obj.id, { include: { all: true, nested: true } });
         }
     }
@@ -40,10 +42,28 @@ class EstadoService {
     static async update(req) {
         const { id } = req.params;
         const { data, peso, altura, taxa_gordura, circunferencia_cintura, circunferencia_braco, comentarios, cliente_id, nutricionista_id } = req.body;
-        let obj = await Estado.findOne({ where: { id } });
 
+        // Verificar se o registro existe
+        let obj = await Estado.findByPk(id);
+        if (!obj) {
+            throw new Error('Estado não encontrado!');
+        }
+
+        // Validações básicas
+        if (cliente_id == null) throw 'Cliente inválido!';
+        if (nutricionista_id == null) throw 'Nutricionista inválido!';
+
+        // Atualizar o objeto
         Object.assign(obj, { data, peso, altura, taxa_gordura, circunferencia_cintura, circunferencia_braco, comentarios, cliente_id, nutricionista_id });
-        return await obj.save();
+        await obj.save();
+
+        // Retornar com includes para consistência com outros métodos
+        return await Estado.findByPk(obj.id, {
+            include: [
+                { association: 'cliente', attributes: ['id', 'nome'] },
+                { association: 'nutricionista', attributes: ['id', 'nome'] }
+            ]
+        });
     }
 
     static async delete(req) {
@@ -56,7 +76,7 @@ class EstadoService {
     //RN 1: Não pode ter sido criada uma atualização de estado na mesma semana.
     //RN 2: Limite de 3 atualizações de estado a cada 30 dias
     static async verificarRegrasDeNegocio(req) {
-        const { cliente } = req.body;
+        const { cliente_id } = req.body; // Era 'cliente', deveria ser 'cliente_id'
 
         const hoje = new Date(req.body.data);
 
@@ -66,7 +86,7 @@ class EstadoService {
 
         const atualizacaoSemana = await Estado.findOne({
             where: {
-                cliente,
+                cliente_id, // Era 'cliente', deveria ser 'cliente_id'
                 data: {
                     [Op.between]: [ultimaSemana, hoje],
                 },
@@ -83,7 +103,7 @@ class EstadoService {
 
         const atualizacoesUltimos30Dias = await Estado.count({
             where: {
-                cliente,
+                cliente_id, // Era 'cliente', deveria ser 'cliente_id'
                 data: {
                     [Op.between]: [trintaDiasAtras, hoje],
                 },
@@ -93,6 +113,8 @@ class EstadoService {
         if (atualizacoesUltimos30Dias >= 3) {
             throw new Error('Limite de 3 atualizações de estado nos últimos 30 dias atingido.');
         }
+
+        return true;
     }
 
     static async evolucaoCliente(req) {
